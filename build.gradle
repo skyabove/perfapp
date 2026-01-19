@@ -9,9 +9,6 @@ version = '0.0.1-SNAPSHOT'
 description = 'Demo project for perftest'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(24)
-	}
 }
 
 repositories {
@@ -30,4 +27,89 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// ===== deploy config =====
+def target = System.getenv('DEPLOY_TARGET') ?: 'evgenlesnikov@91.210.171.99'
+def deployDir = System.getenv('DEPLOY_DIR') ?: '/opt/perfapp'
+def deployPort = System.getenv('DEPLOY_PORT') ?: '22'
+
+def at = target.indexOf('@')
+def deployUser = at > 0 ? target.substring(0, at) : (System.getenv('DEPLOY_USER') ?: 'evgenlesnikov')
+def deployHost = at > 0 ? target.substring(at + 1) : (System.getenv('DEPLOY_HOST') ?: '91.210.171.99')
+
+// команды (если захочешь WSL: DEPLOY_SSH=wsl, DEPLOY_SCP=wsl)
+def sshCmd = System.getenv('DEPLOY_SSH') ?: 'ssh'
+def scpCmd = System.getenv('DEPLOY_SCP') ?: 'scp'
+
+// на случай wsl (тогда команда будет: wsl ssh ... / wsl scp ...)
+def sshPrefix = (sshCmd == 'wsl') ? ['wsl', 'ssh'] : ['ssh']
+def scpPrefix = (scpCmd == 'wsl') ? ['wsl', 'scp'] : ['scp']
+
+// ===== tasks =====
+tasks.register('prepareRemoteDir', Exec) {
+	standardOutput = System.out
+	errorOutput = System.err
+
+	commandLine(
+			(sshPrefix + [
+					'-o', 'BatchMode=yes',
+					'-o', 'ConnectTimeout=10',
+					'-p', "${deployPort}",
+					"${deployUser}@${deployHost}",
+					// sudo -n чтобы не зависать, если попросит пароль
+					"sudo -n mkdir -p '${deployDir}' && sudo -n chown -R ${deployUser}:${deployUser} '${deployDir}'"
+			])
+	)
+}
+
+tasks.register('copyJar', Exec) {
+	dependsOn tasks.named('bootJar')
+	dependsOn tasks.named('prepareRemoteDir')
+
+	standardOutput = System.out
+	errorOutput = System.err
+
+	doFirst {
+		def jar = tasks.named('bootJar').get().archiveFile.get().asFile
+
+		// Если scp идёт через WSL, windows-путь к jar надо конвертировать.
+		def jarPath = jar.absolutePath
+		if (scpCmd == 'wsl') {
+			// C:\a\b -> /mnt/c/a/b
+			jarPath = jarPath.replace('\\', '/')
+			if (jarPath.size() >= 2 && jarPath.charAt(1) == ':') {
+				def drive = Character.toLowerCase(jarPath.charAt(0))
+				jarPath = "/mnt/${drive}" + jarPath.substring(2)
+			}
+		}
+
+		commandLine(
+				(scpPrefix + [
+						'-o', 'BatchMode=yes',
+						'-o', 'ConnectTimeout=10',
+						'-P', "${deployPort}",
+						jarPath,
+						"${deployUser}@${deployHost}:${deployDir}/perfapp.jar"
+				])
+		)
+	}
+}
+
+tasks.register('restartRemoteApp', Exec) {
+	dependsOn tasks.named('copyJar')
+
+	standardOutput = System.out
+	errorOutput = System.err
+
+	commandLine(
+			(sshPrefix + [
+					"${deployUser}@${deployHost}",
+					"sudo -n systemctl restart perfapp.service"
+			])
+	)
+}
+
+tasks.register('deployJar') {
+	dependsOn tasks.named('restartRemoteApp')
 }

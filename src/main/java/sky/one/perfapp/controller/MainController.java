@@ -8,7 +8,7 @@ public class MainController {
 
     @GetMapping
     public String getMessage() {
-        return "Main controller is up";
+        return "Main controller is up!";
     }
 
 }
