@@ -2,6 +2,14 @@ spring:
   application:
     name: perfapp
 
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+      timeout: 2s
+
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres?currentSchema=testdb
     username: ${DB_USER}

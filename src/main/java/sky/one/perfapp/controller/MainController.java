@@ -24,4 +24,9 @@ public class MainController {
         return userService.getUsers();
     }
 
+    @GetMapping("/users/cached")
+    public List<UserDto> getCachedUsers() {
+        return userService.getCachedUsers();
+    }
+
 }
