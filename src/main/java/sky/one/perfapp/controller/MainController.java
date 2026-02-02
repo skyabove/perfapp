@@ -47,16 +47,14 @@ public class MainController {
 
     /**
      * Example:
-     * /perfapp/work?cpuMs=30&sleepMs=70
+     * /perfapp/work?cpuMs=30
      * <p>
      * cpuMs   — cpu time in ms to consume by the current thread
-     * sleepMs — time to sleep (IO wait)
      */
     @GetMapping("/work")
-    public ResponseEntity<Map<String, Object>> work(@RequestParam(defaultValue = "0") long cpuMs,
-                                                    @RequestParam(defaultValue = "0") long sleepMs) {
-        if (cpuMs < 0 || sleepMs < 0) {
-            return ResponseEntity.badRequest().body(Map.of("error", "cpuMs and sleepMs must be >= 0"));
+    public ResponseEntity<Map<String, Object>> work(@RequestParam(defaultValue = "0") long cpuMs) {
+        if (cpuMs < 0) {
+            return ResponseEntity.badRequest().body(Map.of("error", "cpuMs must be >= 0"));
         }
 
         long startWall = System.nanoTime();
@@ -65,18 +63,12 @@ public class MainController {
         // 1) CPU burn
         burnCpuForCpuTime(cpuMs);
 
-        // 2) usleep/sleep
-        if (sleepMs > 0) {
-            LockSupport.parkNanos(sleepMs * 1_000_000L);
-        }
-
         long endCpu = currentThreadCpuNanos();
         long endWall = System.nanoTime();
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("ts", Instant.now().toString());
         res.put("requestedCpuMs", cpuMs);
-        res.put("requestedSleepMs", sleepMs);
         res.put("measuredCpuMs", (endCpu - startCpu) / 1_000_000.0);
         res.put("measuredWallMs", (endWall - startWall) / 1_000_000.0);
         return ResponseEntity.ok(res);
