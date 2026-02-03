@@ -36,7 +36,7 @@ public class UserService {
     }
 
     public UserDto getRandomUserCached() {
-        Integer id = getRandomId();
+        Long id = getRandomId();
         return cache.getUserById(id).orElseGet(() -> {
             UserDto userDto = userRepository.findById(id).map(UserMapper::toDto).orElseGet(UserDto::new);
             cache.putUserById(id, userDto);
@@ -60,8 +60,8 @@ public class UserService {
         return result;
     }
 
-    private int getRandomId() {
-        return ThreadLocalRandom.current().nextInt(1,20);
+    private long getRandomId() {
+        return ThreadLocalRandom.current().nextLong(1, 20);
     }
 
 }

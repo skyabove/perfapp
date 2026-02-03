@@ -4,7 +4,6 @@ package sky.one.perfapp.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 import sky.one.perfapp.model.UserEntity;
 
 import java.time.OffsetDateTime;
@@ -23,5 +22,4 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
     List<UserEntity> findByUpdatedAfter(OffsetDateTime updatedAfter);
 
-    Optional<UserEntity> findById(Integer id);
 }

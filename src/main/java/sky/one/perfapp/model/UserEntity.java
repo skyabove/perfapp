@@ -32,5 +32,19 @@ public class UserEntity {
 
     @Column(nullable = false)
     private OffsetDateTime updated;
+
+    @PrePersist
+    void onCreate() {
+        OffsetDateTime now = OffsetDateTime.now();
+        if (created == null) {
+            created = now;
+        }
+        updated = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updated = OffsetDateTime.now();
+    }
 }
 

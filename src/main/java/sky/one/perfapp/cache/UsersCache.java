@@ -18,18 +18,17 @@ import java.util.Optional;
 public class UsersCache {
     private static final String KEY_USERS = "users:all";
     private static final String KEY_ID = "users:id";
-    private static final Duration TTL = Duration.ofSeconds(300); // под себя
+    private static final Duration TTL = Duration.ofSeconds(300); // 5 minutes
 
     private final StringRedisTemplate redis;
     private final ObjectMapper om;
-
 
     public Optional<List<UserDto>> getUsers() {
         String json = redis.opsForValue().get(KEY_USERS);
         if (json == null) return Optional.empty();
 
         try {
-            return Optional.of(om.readValue(json, new TypeReference<>() {
+            return Optional.of(om.readValue(json, new TypeReference<List<UserDto>>() {
             }));
         } catch (Exception e) {
             log.warn("Unable to retrieve values from cache: {}", e.getMessage());
@@ -38,13 +37,12 @@ public class UsersCache {
         }
     }
 
-    public Optional<UserDto> getUserById(Integer id) {
+    public Optional<UserDto> getUserById(Long id) {
         String json = redis.opsForValue().get(KEY_ID + id);
         if (json == null) return Optional.empty();
 
         try {
-            return Optional.of(om.readValue(json, new TypeReference<>() {
-            }));
+            return Optional.of(om.readValue(json, UserDto.class));
         } catch (Exception e) {
             log.warn("Unable to retrieve value from cache: {}", e.getMessage());
             redis.delete(KEY_ID + id);
@@ -60,7 +58,7 @@ public class UsersCache {
         }
     }
 
-    public void putUserById(Integer id, UserDto user) {
+    public void putUserById(Long id, UserDto user) {
         try {
             redis.opsForValue().set(KEY_ID + id, om.writeValueAsString(user), TTL);
         } catch (Exception e) {

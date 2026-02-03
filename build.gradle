@@ -48,11 +48,11 @@ def at = target.indexOf('@')
 def deployUser = at > 0 ? target.substring(0, at) : (System.getenv('DEPLOY_USER') ?: 'evgenlesnikov')
 def deployHost = at > 0 ? target.substring(at + 1) : (System.getenv('DEPLOY_HOST') ?: '91.210.171.99')
 
-// команды (если захочешь WSL: DEPLOY_SSH=wsl, DEPLOY_SCP=wsl)
+// commands (if you prefer WSL: DEPLOY_SSH=wsl, DEPLOY_SCP=wsl)
 def sshCmd = System.getenv('DEPLOY_SSH') ?: 'ssh'
 def scpCmd = System.getenv('DEPLOY_SCP') ?: 'scp'
 
-// на случай wsl (тогда команда будет: wsl ssh ... / wsl scp ...)
+// for WSL (command becomes: wsl ssh ... / wsl scp ...)
 def sshPrefix = (sshCmd == 'wsl') ? ['wsl', 'ssh'] : ['ssh']
 def scpPrefix = (scpCmd == 'wsl') ? ['wsl', 'scp'] : ['scp']
 
@@ -67,7 +67,7 @@ tasks.register('prepareRemoteDir', Exec) {
 					'-o', 'ConnectTimeout=10',
 					'-p', "${deployPort}",
 					"${deployUser}@${deployHost}",
-					// sudo -n чтобы не зависать, если попросит пароль
+					// sudo -n so it won't prompt for a password
 					"sudo -n mkdir -p '${deployDir}' && sudo -n chown -R ${deployUser}:${deployUser} '${deployDir}'"
 			])
 	)
@@ -83,7 +83,7 @@ tasks.register('copyJar', Exec) {
 	doFirst {
 		def jar = tasks.named('bootJar').get().archiveFile.get().asFile
 
-		// Если scp идёт через WSL, windows-путь к jar надо конвертировать.
+		// If scp goes through WSL, windows path to jar must be converted.
 		def jarPath = jar.absolutePath
 		if (scpCmd == 'wsl') {
 			// C:\a\b -> /mnt/c/a/b
