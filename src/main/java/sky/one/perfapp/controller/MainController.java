@@ -10,11 +10,12 @@ import sky.one.perfapp.service.UserService;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.locks.LockSupport;
 
 @RestController
 @RequiredArgsConstructor
@@ -69,7 +70,7 @@ public class MainController {
      * Example:
      * /perfapp/work?cpuMs=30
      * <p>
-     * cpuMs   — cpu time in ms to consume by the current thread
+     * cpuMs -- cpu time in ms to consume by the current thread
      */
     @GetMapping("/work")
     public ResponseEntity<Map<String, Object>> work(@RequestParam(defaultValue = "0") long cpuMs) {
@@ -77,8 +78,8 @@ public class MainController {
         long startWall = System.nanoTime();
         long startCpu = currentThreadCpuNanos();
 
-        //CPU burn
-        burnCpuForCpuTime(cpuMs);
+        // CPU burn with deterministic hashing
+        consumeCpuWithMd5(cpuMs);
 
         long endCpu = currentThreadCpuNanos();
         long endWall = System.nanoTime();
@@ -96,22 +97,33 @@ public class MainController {
     }
 
     /**
-     * consumes cpuMs milis CPU time for current thread.
+     * consumes cpuMs millis CPU time for current thread.
      */
-    private static void burnCpuForCpuTime(long cpuMs) {
+    private static void consumeCpuWithMd5(long cpuMs) {
         if (cpuMs <= 0) return;
 
         long targetCpuNanos = cpuMs * 1_000_000L;
         long startCpu = currentThreadCpuNanos();
 
-        // prevent jit dead code optimization
-        double x = 1.0;
+        MessageDigest md5 = md5();
+        byte[] block = new byte[8 * 1024];
+        long counter = 0L;
 
         while ((currentThreadCpuNanos() - startCpu) < targetCpuNanos) {
-            // some CPU load
-            x = x * 1.0000001 + Math.sqrt(x);
-            if (x > 1e9) x = 1.0;
+            md5.update(block);
+            byte[] digest = md5.digest();
+            block[0] ^= digest[0];
+            block[1] ^= (byte) counter;
+            counter++;
         }
 
+    }
+
+    private static MessageDigest md5() {
+        try {
+            return MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("MD5 not available", e);
+        }
     }
 }
