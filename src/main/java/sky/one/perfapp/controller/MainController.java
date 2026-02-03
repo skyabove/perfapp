@@ -45,6 +45,26 @@ public class MainController {
         return userService.getCachedUsers();
     }
 
+    @GetMapping("/users/random-one")
+    public UserDto getRandomUser() {
+        return userService.getRandomUser();
+    }
+
+    @GetMapping("/users/random-five")
+    public List<UserDto> getFiveRandomUsers() {
+        return userService.getFiveRandomUsers();
+    }
+
+    @GetMapping("/users/random-one/cached")
+    public UserDto getRandomUserCached() {
+        return userService.getRandomUserCached();
+    }
+
+    @GetMapping("/users/random-five/cached")
+    public List<UserDto> getFiveRandomUsersCached() {
+        return userService.getFiveRandomUsersCached();
+    }
+
     /**
      * Example:
      * /perfapp/work?cpuMs=30
@@ -53,14 +73,11 @@ public class MainController {
      */
     @GetMapping("/work")
     public ResponseEntity<Map<String, Object>> work(@RequestParam(defaultValue = "0") long cpuMs) {
-        if (cpuMs < 0) {
-            return ResponseEntity.badRequest().body(Map.of("error", "cpuMs must be >= 0"));
-        }
 
         long startWall = System.nanoTime();
         long startCpu = currentThreadCpuNanos();
 
-        // 1) CPU burn
+        //CPU burn
         burnCpuForCpuTime(cpuMs);
 
         long endCpu = currentThreadCpuNanos();

@@ -22,4 +22,6 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     List<UserEntity> findTop10ByOrderByCreatedDesc();
 
     List<UserEntity> findByUpdatedAfter(OffsetDateTime updatedAfter);
+
+    Optional<UserEntity> findById(Integer id);
 }

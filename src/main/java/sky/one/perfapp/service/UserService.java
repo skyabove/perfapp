@@ -7,7 +7,10 @@ import sky.one.perfapp.dto.UserDto;
 import sky.one.perfapp.mapper.UserMapper;
 import sky.one.perfapp.repository.UserRepository;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -21,7 +24,7 @@ public class UserService {
     }
 
     public List<UserDto> getCachedUsers() {
-        return cache.get().orElseGet(() -> {
+        return cache.getUsers().orElseGet(() -> {
             List<UserDto> users = userRepository.findAll()
                     .stream()
                     .map(UserMapper::toDto)
@@ -30,6 +33,35 @@ public class UserService {
             cache.put(users);
             return users;
         });
+    }
+
+    public UserDto getRandomUserCached() {
+        Integer id = getRandomId();
+        return cache.getUserById(id).orElseGet(() -> {
+            UserDto userDto = userRepository.findById(id).map(UserMapper::toDto).orElseGet(UserDto::new);
+            cache.putUserById(id, userDto);
+            return userDto;
+        });
+    }
+
+    public List<UserDto> getFiveRandomUsersCached() {
+        List<UserDto> result = new ArrayList<>();
+        IntStream.range(0,5).forEach(i -> result.add(this.getRandomUserCached()));
+        return result;
+    }
+
+    public UserDto getRandomUser() {
+        return userRepository.findById(getRandomId()).map(UserMapper::toDto).orElseGet(UserDto::new);
+    }
+
+    public List<UserDto> getFiveRandomUsers() {
+        List<UserDto> result = new ArrayList<>();
+        IntStream.range(0,5).forEach(i -> result.add(this.getRandomUser()));
+        return result;
+    }
+
+    private int getRandomId() {
+        return ThreadLocalRandom.current().nextInt(1,20);
     }
 
 }

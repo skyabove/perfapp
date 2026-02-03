@@ -16,36 +16,56 @@ import java.util.Optional;
 @Slf4j
 @RequiredArgsConstructor
 public class UsersCache {
-    private static final String KEY = "users:all";
-    private static final Duration TTL = Duration.ofSeconds(60); // под себя
+    private static final String KEY_USERS = "users:all";
+    private static final String KEY_ID = "users:id";
+    private static final Duration TTL = Duration.ofSeconds(300); // под себя
 
     private final StringRedisTemplate redis;
     private final ObjectMapper om;
 
 
-    public Optional<List<UserDto>> get() {
-        String json = redis.opsForValue().get(KEY);
+    public Optional<List<UserDto>> getUsers() {
+        String json = redis.opsForValue().get(KEY_USERS);
         if (json == null) return Optional.empty();
 
         try {
             return Optional.of(om.readValue(json, new TypeReference<>() {
             }));
         } catch (Exception e) {
-            log.warn("Unable to retrieve values from cache: {}",e.getMessage());
-            redis.delete(KEY);
+            log.warn("Unable to retrieve values from cache: {}", e.getMessage());
+            redis.delete(KEY_USERS);
+            return Optional.empty();
+        }
+    }
+
+    public Optional<UserDto> getUserById(Integer id) {
+        String json = redis.opsForValue().get(KEY_ID + id);
+        if (json == null) return Optional.empty();
+
+        try {
+            return Optional.of(om.readValue(json, new TypeReference<>() {
+            }));
+        } catch (Exception e) {
+            log.warn("Unable to retrieve value from cache: {}", e.getMessage());
+            redis.delete(KEY_ID + id);
             return Optional.empty();
         }
     }
 
     public void put(List<UserDto> users) {
         try {
-            redis.opsForValue().set(KEY, om.writeValueAsString(users), TTL);
+            redis.opsForValue().set(KEY_USERS, om.writeValueAsString(users), TTL);
         } catch (Exception e) {
-            log.warn("Unable to put value to redis: {}",e.getMessage());
+            log.warn("Unable to put values to redis: {}", e.getMessage());
         }
     }
 
-    public void invalidate() {
-        redis.delete(KEY);
+    public void putUserById(Integer id, UserDto user) {
+        try {
+            redis.opsForValue().set(KEY_ID + id, om.writeValueAsString(user), TTL);
+        } catch (Exception e) {
+            log.warn("Unable to put value to redis: {}", e.getMessage());
+        }
     }
+
 }
