@@ -51,9 +51,14 @@ public class MainController {
         return userService.getRandomUser();
     }
 
+    /**
+     * Examples:
+     * /users/random-five
+     * /users/random-five?singleSelect=true
+     */
     @GetMapping("/users/random-five")
-    public List<UserDto> getFiveRandomUsers() {
-        return userService.getFiveRandomUsers();
+    public List<UserDto> getFiveRandomUsers(@RequestParam(defaultValue = "false") boolean singleSelect) {
+        return userService.getFiveRandomUsers(singleSelect);
     }
 
     @GetMapping("/users/random-one/cached")
@@ -61,9 +66,14 @@ public class MainController {
         return userService.getRandomUserCached();
     }
 
+    /**
+     * Examples:
+     * /users/random-five/cached
+     * /users/random-five/cached?singleSelect=true
+     */
     @GetMapping("/users/random-five/cached")
-    public List<UserDto> getFiveRandomUsersCached() {
-        return userService.getFiveRandomUsersCached();
+    public List<UserDto> getFiveRandomUsersCached(@RequestParam(defaultValue = "false") boolean singleSelect) {
+        return userService.getFiveRandomUsersCached(singleSelect);
     }
 
     /**
