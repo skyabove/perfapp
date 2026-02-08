@@ -31,8 +31,21 @@ public class MainController {
 
     private final UserService userService;
 
+    /**
+     * Example:
+     * /perfapp?sleepMs=150
+     * <p>
+     * sleepMs -- sleep time in milliseconds for this request
+     */
     @GetMapping
-    public String getMessage() {
+    public String getMessage(@RequestParam(defaultValue = "0") long sleepMs) {
+        if (sleepMs > 0) {
+            try {
+                Thread.sleep(sleepMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         return "Main controller is up!";
     }
 
