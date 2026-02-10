@@ -22,3 +22,9 @@ spring:
     properties:
       hibernate:
         default_schema: testdb
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics"

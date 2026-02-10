@@ -1,6 +1,11 @@
 package sky.one.perfapp.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.catalina.connector.Connector;
+import org.apache.coyote.AbstractProtocol;
+import org.apache.coyote.ProtocolHandler;
+import org.springframework.boot.tomcat.TomcatWebServer;
+import org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,11 +21,18 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.tomcat.util.threads.ThreadPoolExecutor;
 
 @RestController
 @RequiredArgsConstructor
 public class MainController {
     private static final ThreadMXBean THREAD_MX_BEAN = ManagementFactory.getThreadMXBean();
+
+    private final ServletWebServerApplicationContext ctx;
+    private final AtomicInteger active = new AtomicInteger();
 
     static {
         // enable CPU time thread measure
@@ -43,15 +55,21 @@ public class MainController {
      * sleepMs -- sleep time in milliseconds for this request
      */
     @GetMapping("/sleep")
-    public String sleep(@RequestParam(defaultValue = "0") long sleepMs) {
-        if (sleepMs > 0) {
-            try {
-                Thread.sleep(sleepMs);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
+    public Map<String, Object> sleep(@RequestParam(defaultValue = "0") long sleepMs) {
+        int now = active.incrementAndGet();
+        try {
+            Thread.sleep(sleepMs);
+            return Map.of("active", now);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } finally {
+            active.decrementAndGet();
         }
-        return "OK";
+    }
+
+    @GetMapping("/active")
+    public Map<String, Object> active() {
+        return Map.of("active", active.get());
     }
 
     @GetMapping("/users")
@@ -118,6 +136,50 @@ public class MainController {
         res.put("measuredCpuMs", (endCpu - startCpu) / 1_000_000.0);
         res.put("measuredWallMs", (endWall - startWall) / 1_000_000.0);
         return ResponseEntity.ok(res);
+    }
+
+    @GetMapping("/info")
+    public Map<String, Object> info() {
+        Map<String, Object> out = new LinkedHashMap<>();
+
+        var webServer = ctx.getWebServer();
+        if (!(webServer instanceof TomcatWebServer tomcatWebServer)) {
+            out.put("error", "Not a TomcatWebServer: " + webServer.getClass().getName());
+            return out;
+        }
+
+        Map<String, Object> connectorsOut = new LinkedHashMap<>();
+
+        for (Connector c : tomcatWebServer.getTomcat().getService().findConnectors()) {
+            Map<String, Object> one = new LinkedHashMap<>();
+            one.put("protocol", c.getProtocol());
+            one.put("port", c.getPort());
+
+            ProtocolHandler ph = c.getProtocolHandler();
+
+            if (ph instanceof AbstractProtocol<?> ap) {
+                one.put("maxConnections", ap.getMaxConnections());
+                one.put("acceptCount", ap.getAcceptCount());
+
+                Executor ex = ap.getExecutor();
+                if (ex instanceof ThreadPoolExecutor tpe) {
+                    one.put("maxThreads", tpe.getMaximumPoolSize());
+                    one.put("currentThreadCount", tpe.getPoolSize());
+                    one.put("currentThreadsBusy", tpe.getActiveCount());
+                    one.put("queueSize", tpe.getQueue() != null ? tpe.getQueue().size() : null);
+                } else if (ex != null) {
+                    one.put("executorClass", ex.getClass().getName());
+                }
+            } else {
+                one.put("protocolHandlerClass", ph.getClass().getName());
+                one.put("note", "ProtocolHandler is not AbstractProtocol, cannot read maxConnections/acceptCount safely");
+            }
+
+            connectorsOut.put("connector-" + c.getPort(), one);
+        }
+
+        out.put("tomcat", connectorsOut);
+        return out;
     }
 
     private static long currentThreadCpuNanos() {
